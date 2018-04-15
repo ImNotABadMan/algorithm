@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>2</title>
+</head>
+<style>
+    .td-obstacle{
+        background-color: #ccc;
+    }
+</style>
+<body>
+    <h4>第一题</h4>
+    <p>select d.*, u.* from depts as d  join users as u on u.dept_id = d.id where parent_id = (SELECT id from depts WHERE dept_name = 'TG')</p>
+    <hr />
+    <h4>第二题</h4>
+    <h5>1、生成界面<br />2、出入口位置<br />3、阻碍物请点击表格<br />4、最优路径<br /></h5>
+    行数: <input type="number" class="row" value="4" />&nbsp;&nbsp; 列数: <input type="number" class="col" value="4" />&nbsp;&nbsp;
+    <button class="btn">1、生成界面</button>
+    <br />
+    入口：行<input type="number" class="enter-row" value="1" />&nbsp;&nbsp; 列：<input type="number" class="enter-col" value="1" /><br />
+    出口：行<input type="number" class="outer-row" value="4" />&nbsp;&nbsp; 列：<input type="number" class="outer-col" value="4" /><br />
+    <button class="btn-enter-outer">2、出入口位置</button>
+    <span class="star-end"></span><br/>
+    最优路径：<button class="btn-best">3、最优路径</button><span class="best"></span>
+    <table border="1" style="border-collapse:collapse;">
+    </table>
+</body>
+<script src="./jquery.js"></script>
+<script>
+// $(function(e){
+    // 表格大小全局变量
+    var row = 5,
+        col = 5;
+    // 出入口位置初始化
+    var enterR = 0,
+        enterC = 0;
+    var outerR = 0,
+        outerC = 5;
+    // 出入口坐标点
+    var start = [0, 0],
+        end = [0,0];
+    // 起点和终点在地图中的位置
+    var startIndex = 0,
+        endIndex = 0;
+    // 障碍物位置
+    var obstacle = [];
+    // 最优路径
+    var bestRoad =  [];
+    // 临时路径
+    var tempRoad = [];
+    // 最优路径
+    var best = [];
+    // 步数
+    var step = 0;
+    // 临时步数
+    var tempStep = 0;
+    // 表格
+    var table = [];
+    // // 第几个可能性
+    // var index = 0;
+
+    // 生成table大小
+    $('.btn').click(function(e){
+        table = [];
+        obstacle = [];
+
+        e.preventDefault();
+        row = $('.row').val();
+        col = $('.col').val();
+        var html = '';
+        var flag = false;
+        for(var r = 0; r < row; r++){
+            html += `<tr>`;
+            for(var c = 0; c < col; c++){
+                table.push([r, c]);
+                html += `<td style="width: 50px;height: 50px; text-align:center;vertical-align: middle;">&nbsp;</td>`;
+            }
+            html += `</tr>`;
+        }
+        $('table').html(html);
+    });
+
+    // 设置出入口位置
+    $('.btn-enter-outer').click(function(e){
+        e.preventDefault();
+        enterR = $('.enter-row').val() - 1;
+        enterC = $('.enter-col').val() - 1;
+        // 入口坐标
+        start = [enterR, enterC];
+
+        outerR = $('.outer-row').val() - 1;
+        outerC = $('.outer-col').val() - 1;
+        // 出口坐标
+        end = [outerR, outerC];
+        // 起点和终点在地图中的位置
+        startIndex = 4 * enterR + enterC;
+        endIndex = 4 * outerR + outerC;
+
+        // 入口位置
+        $('tr').eq(enterR).children('td').eq(enterC).html('A');
+        // 出口位置
+        $('tr').eq(outerR).children('td').eq(outerC).html('B');
+        $('.star-end').html('A: ' + enterR + ',' + enterC + '&nbsp;&nbsp;B: ' + outerR + ', ' + outerC);
+    });
+
+    // 设置障碍物
+    $('table').on('click', $('td'), function(e){
+        if($(e.target).html() == 'A' || $(e.target).html() == 'B'){
+            return false;
+        }
+        e.preventDefault();
+        $(e.target).toggleClass('td-obstacle');
+
+        // 点击td的坐标
+        var tdC = $(e.target).index();
+        var tdR = $(e.target).parent().index();
+        var td = [tdR, tdC];
+        // 暂时变量
+        var temp = [];
+        $('td').each(function(key, item){
+            if($(item).attr('class') == 'td-obstacle'){
+                temp.push( [$(item).parent().index(), $(item).index()] );
+                $(item).html( $(item).parent().index() + ',' + $(item).index() );
+            }else{
+                if($(item).html() != 'A' && $(item).html() != 'B'){
+                    $(item).html('');
+                }
+            }
+        });
+        obstacle = temp;
+        // console.log(obstacle);
+    });
+
+    $('.btn-best').click(function(e){
+        e.preventDefault();
+        // console.log(start, end, obstacle, table);
+        // 初始化
+        tempRoad = [];
+        tempStep = [];
+        bestRoad = [];
+        step = 0;
+        bestTree(startIndex, start, end, obstacle, table);
+        var html = '<br />步数为：' + step + '<br />';
+        for(var i = 0; i < bestRoad.length; i++){
+            if(i != 0 ){
+                html += ',';
+            }
+            html += '[' + bestRoad[i][0] + ',' + bestRoad[i][1] + '] ';
+        }
+        $('.best').html(html);
+    });
+
+
+    // 使用递归算法，
+    // 树的深度搜索，保存上一次到终点的最优路径，
+    // 以当前点到下一列的斜边，先靠近终点方向的先遍历
+    // 再继续回到上一层走下来
+    // 比较路径，更优则替换
+
+    // arr 表示表格，obs 表示障碍物
+    // oldStart 上一个起点
+    // star: 起点
+    // end: 终点
+    // obs: 障碍物位置---数组
+    // arr: 整个地图的坐标 ---数组
+    function bestTree(oldStart, start, end, obs, arr){
+        if(start[0] == end[0] && start[1] == end[1]){
+            if(step == 0 || step > tempStep){
+                bestRoad = [];
+                for(var i = 0; i < tempRoad.length; i++){
+                    bestRoad.push(tempRoad[i]);
+                }
+                step = tempStep;
+                console.log(bestRoad);
+            }
+            return;
+        }
+
+        oldStart = start[0] * 4 + start[1];
+        // 从起点向周围找
+        for (var r = start[0] - 1; r <= start[0] + 1; r++) {
+            for(var c = start[1] - 1; c <= start[1] + 1; c++){
+                if( !(r > -1 && r < row) || !(c > -1 && c < col) || (r == start[0] && c == start[1]) ){
+                    continue;
+                }
+                // 当前点在表格中的位置
+                i = col * r + c;
+                if( i == oldStart )
+                    continue;
+                tempRoad.push(arr[i]);
+                tempStep++;
+                if( isNext(arr[i], obs, tempRoad) ){
+                    bestTree(oldStart, arr[i], end, obs, arr);
+                }
+                tempRoad.pop();
+                tempStep--;
+            }
+        }
+
+    }
+    /**
+     * 判断下一步是否可以走，有阻碍物, 超出表格范围
+     * @param  array  current       当前点
+     * @param  array  obs           阻碍物
+     * @param  array  tempRoad     走过的路
+     */
+    function isNext(current, obs, tempRoad){
+        if( obs == []){
+            return true;
+        }
+        // 有阻碍物则不走
+        for(var i = 0; i < obs.length; i++){
+            if(current[0] == obs[i][0] && current[1] == obs[i][1]){
+                return false;
+            }
+        }
+        // 不走回头路
+        for(var i = 0; i < tempRoad.length - 1; i++){
+            if(current[0] == tempRoad[i][0] && current[1] == tempRoad[i][1]){
+                return false;
+            }
+        }
+        // console.log(current, obs);
+        return true;
+    }
+
+// })
+</script>
+</html>
