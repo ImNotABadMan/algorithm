@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
-    <title>2</title>
+    <title>笔试题</title>
 </head>
 <style>
     .td-obstacle{
@@ -11,7 +11,7 @@
 </style>
 <body>
     <h4>第一题</h4>
-    <p>select d.*, u.* from depts as d  join users as u on u.dept_id = d.id where parent_id = (SELECT id from depts WHERE dept_name = 'TG')</p>
+    <p>select d.id as depts_id, d.parent_id,d.type_id,d.dept_name, u.id as user_id, u.dept_id as user_dept_id,u.user_name from depts as d join users as u on u.dept_id = d.id where d.parent_id = (SELECT id from depts WHERE dept_name = 'TG')</p>
     <hr />
     <h4>第二题</h4>
     <h5>1、生成界面<br />2、出入口位置<br />3、阻碍物请点击表格<br />4、最优路径<br /></h5>
